@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>오늘의 할일</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&family=Outfit:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app">
+    <header class="header">
+      <h1 class="title">오늘의 할일</h1>
+    </header>
+
+    <main class="main">
+      <section class="calendar-section" aria-label="달력">
+        <div class="calendar-nav">
+          <button type="button" class="cal-btn cal-prev" id="calPrev" aria-label="이전 달">‹</button>
+          <p class="cal-month-year" id="calMonthYear"></p>
+          <button type="button" class="cal-btn cal-next" id="calNext" aria-label="다음 달">›</button>
+        </div>
+        <div class="cal-weekdays">
+          <span>일</span><span>월</span><span>화</span><span>수</span><span>목</span><span>금</span><span>토</span>
+        </div>
+        <div class="cal-grid" id="calGrid"></div>
+      </section>
+
+      <div class="selected-date-wrap">
+        <p class="selected-date" id="selectedDate"></p>
+      </div>
+
+      <form class="add-form" id="addForm" novalidate>
+        <div class="input-wrap">
+          <input
+            type="text"
+            id="todoInput"
+            class="input"
+            placeholder="선택한 날짜에 새 할일 추가"
+            autocomplete="off"
+            maxlength="200"
+          />
+          <button type="submit" class="btn-add" id="btnAdd" aria-label="추가">
+            <span class="btn-add-icon">+</span>
+          </button>
+        </div>
+        <p class="input-hint" id="inputHint"></p>
+      </form>
+
+      <div class="filters" role="tablist">
+        <button type="button" class="filter-btn active" data-filter="all" role="tab" aria-selected="true">전체</button>
+        <button type="button" class="filter-btn" data-filter="active" role="tab" aria-selected="false">진행중</button>
+        <button type="button" class="filter-btn" data-filter="completed" role="tab" aria-selected="false">완료</button>
+      </div>
+
+      <ul class="todo-list" id="todoList" aria-live="polite"></ul>
+
+      <div class="empty-state" id="emptyState" hidden>
+        <div class="empty-icon" aria-hidden="true">✦</div>
+        <p class="empty-text">이 날짜에 할일이 없어요.<br>위에서 새 할일을 추가해 보세요.</p>
+      </div>
+
+      <div class="loading" id="loading">
+        <span class="loading-dot"></span>
+        <span class="loading-dot"></span>
+        <span class="loading-dot"></span>
+      </div>
+    </main>
+
+    <footer class="footer">
+      <p class="footer-text">오늘도 하나씩 해내요.</p>
+    </footer>
+  </div>
+
+  <div class="modal-overlay" id="passwordModalOverlay" hidden>
+    <div class="modal" role="dialog" aria-labelledby="passwordModalTitle" aria-modal="true">
+      <h2 class="modal-title" id="passwordModalTitle">비밀번호 입력</h2>
+      <p class="modal-desc" id="passwordModalDesc">수정·삭제하려면 비밀번호를 입력하세요.</p>
+      <input type="password" id="passwordInput" class="modal-input" placeholder="비밀번호" autocomplete="current-password" />
+      <p class="modal-error" id="passwordModalError"></p>
+      <div class="modal-actions">
+        <button type="button" class="btn-modal btn-cancel" id="passwordModalCancel">취소</button>
+        <button type="button" class="btn-modal btn-confirm" id="passwordModalConfirm">확인</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="editModalOverlay" hidden>
+    <div class="modal" role="dialog" aria-labelledby="editModalTitle" aria-modal="true">
+      <h2 class="modal-title" id="editModalTitle">할일 수정</h2>
+      <input type="text" id="editInput" class="modal-input" placeholder="할일 내용" maxlength="200" />
+      <p class="modal-error" id="editModalError"></p>
+      <div class="modal-actions">
+        <button type="button" class="btn-modal btn-cancel" id="editModalCancel">취소</button>
+        <button type="button" class="btn-modal btn-confirm" id="editModalSave">저장</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>
