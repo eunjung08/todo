@@ -54,6 +54,16 @@ function setStoredPassword(pw) {
   localStorage.setItem(PASSWORD_KEY, pw || "");
 }
 
+function requestadd(id) {
+  pendingAction = { type: "submit", id };
+
+  passwordDesc.textContent = "추가하려면 비밀번호를 입력하세요.";
+  passwordError.textContent = "";
+  passwordInput.value = "";
+  passwordOverlay.hidden = false;
+  passwordInput.focus();
+}
+
 function requestEdit(id) {
   pendingAction = { type: "edit", id };
   passwordDesc.textContent = getStoredPassword()
@@ -85,8 +95,7 @@ function closePasswordModal() {
 
 function checkPasswordAndProceed() {
   const input = passwordInput.value;
-  const stored = getStoredPassword();
-
+  const stored = "0921";
   if (!input.trim()) {
     passwordError.textContent = "비밀번호를 입력하세요.";
     return;

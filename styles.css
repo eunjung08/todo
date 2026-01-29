@@ -1,11 +1,11 @@
 /* ----- Variables (모노톤 + 푸른색) ----- */
 :root {
-  --bg: #e9f7ff;
+  --bg: #f2f6fb;
   --bg-card: #ffffff;
-  --text: #1a1a1a;
-  --text-muted: #6b7280;
-  --primary: #2563eb;
-  --primary-hover: #1d4ed8;
+  --text: #4466b3;
+  --text-muted: #64748b;
+  --primary: #4466b3;
+  --primary-hover: #38bdf8;
   --accent: #3b82f6;
   --accent-soft: #dbeafe;
   --border: #e5e7eb;
@@ -26,8 +26,12 @@
 html { font-size: 16px; scroll-behavior: smooth; }
 body {
   margin: 0;
-  font-family: var(--font-kr);
-  background: var(--bg);
+  font-family: var(--font-kr);  
+  background:
+    radial-gradient(1200px 700px at 15% 0%, rgba(191, 219, 254, 0.8), transparent 55%),
+    radial-gradient(900px 700px at 90% 10%, rgba(219, 234, 254, 0.85), transparent 55%),
+    radial-gradient(900px 700px at 70% 90%, rgba(191, 227, 255, 0.6), transparent 60%),
+    linear-gradient(180deg, #e0f2fe, var(--bg));
   color: var(--text);
   min-height: 100vh;
   line-height: 1.5;
