@@ -34,6 +34,7 @@ const editSave = $("editModalSave");
 
 let currentFilter = "all";
 let pendingAction = null;
+let pendingTodoText = ""; // 추가하려는 할일 텍스트 임시 저장
 let todos = [];
 let unsubscribe = null;
 let firestoreOps = null;
@@ -41,6 +42,7 @@ let firestoreOps = null;
 let selectedDate = null;
 let calYear = null;
 let calMonth = null;
+let datesWithTodos = new Set(); // 할일이 있는 날짜들을 저장
 
 function genId() {
   return Date.now().toString(36) + Math.random().toString(36).slice(2);
@@ -54,8 +56,10 @@ function setStoredPassword(pw) {
   localStorage.setItem(PASSWORD_KEY, pw || "");
 }
 
-function requestadd(id) {
-  pendingAction = { type: "submit", id };
+// 할일 추가를 위한 비밀번호 요청
+function requestAdd(todoText) {
+  pendingAction = { type: "add" };
+  pendingTodoText = todoText;
 
   passwordDesc.textContent = "추가하려면 비밀번호를 입력하세요.";
   passwordError.textContent = "";
@@ -66,9 +70,7 @@ function requestadd(id) {
 
 function requestEdit(id) {
   pendingAction = { type: "edit", id };
-  passwordDesc.textContent = getStoredPassword()
-    ? "수정하려면 비밀번호를 입력하세요."
-    : "비밀번호가 없습니다. 새 비밀번호를 입력하여 설정 후 수정합니다.";
+  passwordDesc.textContent = "수정하려면 비밀번호를 입력하세요.";
   passwordError.textContent = "";
   passwordInput.value = "";
   passwordOverlay.hidden = false;
@@ -77,9 +79,16 @@ function requestEdit(id) {
 
 function requestDelete(id) {
   pendingAction = { type: "delete", id };
-  passwordDesc.textContent = getStoredPassword()
-    ? "삭제하려면 비밀번호를 입력하세요."
-    : "비밀번호가 없습니다. 새 비밀번호를 입력하여 설정 후 삭제합니다.";
+  passwordDesc.textContent = "삭제하려면 비밀번호를 입력하세요.";
+  passwordError.textContent = "";
+  passwordInput.value = "";
+  passwordOverlay.hidden = false;
+  passwordInput.focus();
+}
+
+function requestToggle(id) {
+  pendingAction = { type: "toggle", id };
+  passwordDesc.textContent = "완료 상태를 변경하려면 비밀번호를 입력하세요.";
   passwordError.textContent = "";
   passwordInput.value = "";
   passwordOverlay.hidden = false;
@@ -89,23 +98,17 @@ function requestDelete(id) {
 function closePasswordModal() {
   passwordOverlay.hidden = true;
   pendingAction = null;
+  pendingTodoText = "";
   passwordInput.value = "";
   passwordError.textContent = "";
 }
 
 function checkPasswordAndProceed() {
   const input = passwordInput.value;
-  const stored = "0921";
+  const stored = "0921"; // 고정 비밀번호
+  
   if (!input.trim()) {
     passwordError.textContent = "비밀번호를 입력하세요.";
-    return;
-  }
-
-  if (!stored) {
-    setStoredPassword(input.trim());
-    passwordError.textContent = "";
-    executePendingAction();
-    closePasswordModal();
     return;
   }
 
@@ -123,8 +126,52 @@ function executePendingAction() {
   if (!pendingAction) return;
   const { type, id } = pendingAction;
   pendingAction = null;
-  if (type === "edit") openEditModal(id);
+  
+  if (type === "add") performAdd();
+  else if (type === "edit") openEditModal(id);
   else if (type === "delete") performDelete(id);
+  else if (type === "toggle") performToggle(id);
+}
+
+// 실제 할일 추가 수행
+async function performAdd() {
+  const raw = pendingTodoText;
+  pendingTodoText = "";
+  
+  if (!raw) return;
+
+  const ops = await initFirestoreOps();
+  if (!ops) {
+    showHint("Firebase 설정 후 이용해 주세요.");
+    return;
+  }
+
+  const ymd = selectedDate;
+  const ref = docRef(ymd);
+  const newItem = {
+    id: genId(),
+    text: raw,
+    completed: false,
+    createdAt: Date.now(),
+  };
+
+  btnAdd.disabled = true;
+  try {
+    await ops.runTransaction(ops.db, async (tx) => {
+      const snap = await tx.get(ref);
+      const items = snap.exists() ? (snap.data().items || []).slice() : [];
+      items.push(newItem);
+      tx.set(ref, { items });
+    });
+    todoInput.value = "";
+    todoInput.focus();
+    showHint("할일이 추가되었습니다.");
+  } catch (err) {
+    console.error(err);
+    showHint("추가 중 오류가 났어요.");
+  } finally {
+    btnAdd.disabled = false;
+  }
 }
 
 function openEditModal(id) {
@@ -170,6 +217,29 @@ async function performDelete(id) {
   } catch (err) {
     console.error("Delete error:", err);
     showHint("삭제 중 오류가 났어요.");
+  }
+}
+
+async function performToggle(id) {
+  const ops = await initFirestoreOps();
+  if (!ops) return;
+  const t = todos.find((x) => x.id === id);
+  if (!t) return;
+
+  const ymd = selectedDate;
+  const ref = docRef(ymd);
+
+  try {
+    await ops.runTransaction(ops.db, async (tx) => {
+      const snap = await tx.get(ref);
+      const items = (snap.exists() ? snap.data().items || [] : []).map((it) =>
+        it.id === id ? { ...it, completed: !it.completed } : it
+      );
+      tx.set(ref, { items });
+    });
+  } catch (err) {
+    console.error("Toggle error:", err);
+    showHint("완료 상태 변경 중 오류가 났어요.");
   }
 }
 
@@ -242,7 +312,7 @@ function renderList() {
     check.innerHTML = t.completed
       ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 13l4 4L19 7"/></svg>'
       : "";
-    check.addEventListener("click", () => toggleComplete(t.id));
+    check.addEventListener("click", () => requestToggle(t.id));
 
     const span = document.createElement("span");
     span.className = "todo-text";
@@ -282,6 +352,32 @@ function handleFilter(e) {
   renderList();
 }
 
+// 달력에서 할일이 있는 날짜를 불러오는 함수
+async function loadDatesWithTodos() {
+  const ops = await initFirestoreOps();
+  if (!ops) return;
+
+  const { collection, getDocs } = await import(
+    "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js"
+  );
+  
+  try {
+    const querySnapshot = await getDocs(collection(ops.db, TODOS_COLLECTION));
+    datesWithTodos.clear();
+    
+    querySnapshot.forEach((doc) => {
+      const data = doc.data();
+      if (data.items && data.items.length > 0) {
+        datesWithTodos.add(doc.id); // doc.id가 날짜 (YYYY-MM-DD)
+      }
+    });
+    
+    renderCalendar(); // 달력 다시 렌더링
+  } catch (err) {
+    console.error("Error loading dates with todos:", err);
+  }
+}
+
 function renderCalendar() {
   calMonthYear.textContent = `${calYear}년 ${calMonth}월`;
   const first = new Date(calYear, calMonth - 1, 1);
@@ -293,6 +389,7 @@ function renderCalendar() {
 
   calGrid.innerHTML = "";
 
+  // 이전 달의 날짜들
   for (let i = 0; i < startPad; i++) {
     const d = prevDays - startPad + 1 + i;
     const y = calMonth === 1 ? calYear - 1 : calYear;
@@ -307,20 +404,25 @@ function renderCalendar() {
     calGrid.appendChild(btn);
   }
 
+  // 현재 달의 날짜들
   const today = getTodayString();
   for (let d = 1; d <= daysInMonth; d++) {
     const ymd = `${calYear}-${String(calMonth).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
     const btn = document.createElement("button");
     btn.type = "button";
     btn.className = "cal-day";
+    
     if (ymd === today) btn.classList.add("today");
     if (ymd === selectedDate) btn.classList.add("selected");
+    if (datesWithTodos.has(ymd)) btn.classList.add("has-todos"); // 할일이 있는 날짜 표시
+    
     btn.textContent = d;
     btn.dataset.ymd = ymd;
     btn.addEventListener("click", () => pickDate(ymd));
     calGrid.appendChild(btn);
   }
 
+  // 다음 달의 날짜들
   const totalCells = startPad + daysInMonth;
   const remaining = totalCells % 7 === 0 ? 0 : 7 - (totalCells % 7);
   for (let i = 0; i < remaining; i++) {
@@ -396,6 +498,9 @@ function subscribeToDate(ymd) {
         todos = [...raw].sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
         setLoading(false);
         renderList();
+        
+        // 할일 추가/삭제 시 달력 업데이트
+        loadDatesWithTodos();
       },
       (err) => {
         console.error("Firestore error:", err);
@@ -406,6 +511,7 @@ function subscribeToDate(ymd) {
   })();
 }
 
+// 폼 제출 시 비밀번호 확인 후 추가
 async function addTodo(e) {
   e.preventDefault();
   const raw = todoInput.value.trim();
@@ -423,53 +529,8 @@ async function addTodo(e) {
     return;
   }
 
-  const ymd = selectedDate;
-  const ref = docRef(ymd);
-  const newItem = {
-    id: genId(),
-    text: raw,
-    completed: false,
-    createdAt: Date.now(),
-  };
-
-  btnAdd.disabled = true;
-  try {
-    await ops.runTransaction(ops.db, async (tx) => {
-      const snap = await tx.get(ref);
-      const items = snap.exists() ? (snap.data().items || []).slice() : [];
-      items.push(newItem);
-      tx.set(ref, { items });
-    });
-    todoInput.value = "";
-    todoInput.focus();
-  } catch (err) {
-    console.error(err);
-    showHint("추가 중 오류가 났어요.");
-  } finally {
-    btnAdd.disabled = false;
-  }
-}
-
-async function toggleComplete(id) {
-  const ops = await initFirestoreOps();
-  if (!ops) return;
-  const t = todos.find((x) => x.id === id);
-  if (!t) return;
-
-  const ymd = selectedDate;
-  const ref = docRef(ymd);
-
-  try {
-    await ops.runTransaction(ops.db, async (tx) => {
-      const snap = await tx.get(ref);
-      const items = (snap.exists() ? snap.data().items || [] : []).map((it) =>
-        it.id === id ? { ...it, completed: !it.completed } : it
-      );
-      tx.set(ref, { items });
-    });
-  } catch (err) {
-    console.error("Toggle error:", err);
-  }
+  // 비밀번호 확인 요청
+  requestAdd(raw);
 }
 
 async function updateTodo(id, newText) {
@@ -511,6 +572,9 @@ function init() {
   setSelectedDate(today);
   renderCalendar();
   renderConfigBanner();
+  
+  // 할일이 있는 날짜들 로드
+  loadDatesWithTodos();
 
   addForm.addEventListener("submit", addTodo);
   filterBtns.forEach((btn) => btn.addEventListener("click", handleFilter));

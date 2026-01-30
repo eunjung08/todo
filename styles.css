@@ -136,6 +136,7 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
+  position: relative;
   transition: background var(--transition), color var(--transition);
 }
 .cal-day:hover { background: var(--accent-soft); }
@@ -151,6 +152,24 @@ body {
   font-weight: 600;
 }
 .cal-day.selected.today { background: var(--primary); color: white; }
+
+/* 할일이 있는 날짜 표시 */
+.cal-day.has-todos::after {
+  content: '';
+  position: absolute;
+  bottom: 3px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--primary);
+}
+
+.cal-day.selected.has-todos::after {
+  background: white;
+}
+
 .selected-date-wrap {
   margin: -0.25rem 0 0;
 }
